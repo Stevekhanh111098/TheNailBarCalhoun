@@ -2,10 +2,30 @@
 
 import Image from "next/image";
 import { useState, useRef, useEffect } from "react";
+import { createClient } from "@/lib/supabase-client";
+import type { User } from "@supabase/supabase-js";
+import AuthModal from "./AuthModal";
 
 export default function Header() {
   const [profileOpen, setProfileOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [authModal, setAuthModal] = useState<"login" | "signup" | null>(null);
   const profileRef = useRef<HTMLDivElement>(null);
+  const supabase = createClient();
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -18,7 +38,7 @@ export default function Header() {
   }, []);
 
   return (
-    <nav className="flex items-center justify-between py-4 bg-white" style={{ paddingLeft: "10%", paddingRight: "6%" }}>
+    <nav className="relative z-50 flex items-center justify-between py-4 bg-white" style={{ paddingLeft: "10%", paddingRight: "6%" }}>
       <div className="flex items-center gap-10">
         <a href="/">
           <Image
@@ -55,12 +75,32 @@ export default function Header() {
           </button>
           {profileOpen && (
             <div className="absolute right-0 mt-2 w-40 rounded-lg border border-zinc-200 bg-white py-2 shadow-lg" style={{ fontFamily: "var(--font-bodoni-moda)" }}>
-              <a href="#" className="block px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100">Log In</a>
-              <a href="#" className="block px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100">Sign Up</a>
+              {user ? (
+                <>
+                  <span className="block px-4 py-2 text-xs text-zinc-500 truncate">
+                    {user.email}
+                  </span>
+                  <hr className="my-1 border-zinc-100" />
+                  <a href="/auth/signout" className="block px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100">
+                    Log Out
+                  </a>
+                </>
+              ) : (
+                <>
+                  <button onClick={() => { setProfileOpen(false); setAuthModal("login"); }} className="block w-full text-left px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100">Log In</button>
+                  <button onClick={() => { setProfileOpen(false); setAuthModal("signup"); }} className="block w-full text-left px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100">Sign Up</button>
+                </>
+              )}
             </div>
           )}
         </div>
       </div>
+
+      <AuthModal
+        isOpen={authModal !== null}
+        onClose={() => setAuthModal(null)}
+        initialView={authModal ?? "login"}
+      />
     </nav>
   );
 }
