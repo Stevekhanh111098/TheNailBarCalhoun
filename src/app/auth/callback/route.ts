@@ -27,6 +27,24 @@ export async function GET(request: Request) {
     );
 
     await supabase.auth.exchangeCodeForSession(code);
+    // After exchanging the code the user is authenticated via cookies.
+    // Create a profile row for the user if one doesn't already exist.
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const user = userData.user;
+      if (user) {
+        await supabase.from("profiles").insert(
+          {
+            id: user.id,
+            email: user.email,
+          },
+          { upsert: false }
+        );
+      }
+    } catch (e) {
+      // silently ignore; profile can be created later from client or admin
+      console.error("profile creation after auth callback failed", e);
+    }
   }
 
   return NextResponse.redirect(origin);

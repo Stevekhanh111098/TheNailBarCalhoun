@@ -10,6 +10,7 @@ export default function Header() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [authModal, setAuthModal] = useState<"login" | "signup" | null>(null);
+  const [profileIncomplete, setProfileIncomplete] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
@@ -26,6 +27,29 @@ export default function Header() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    async function checkProfile() {
+      if (!user) {
+        if (mounted) setProfileIncomplete(false);
+        return;
+      }
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("phone, date_of_birth")
+        .eq("id", user.id)
+        .single();
+      if (!mounted) return;
+      if (error || !profile) {
+        setProfileIncomplete(true);
+        return;
+      }
+      setProfileIncomplete(!profile.phone || !profile.date_of_birth);
+    }
+    checkProfile();
+    return () => { mounted = false; };
+  }, [user]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -48,7 +72,7 @@ export default function Header() {
             height={200}
           />
         </a>
-        <ul className="flex gap-10 text-base font-medium text-zinc-700" style={{ fontFamily: "var(--font-bodoni-moda)" }}>
+        <ul className="flex gap-10 text-lg font-semibold text-zinc-700" style={{ fontFamily: "var(--font-bodoni-moda)" }}>
           <li><a href="/services" className="hover:text-zinc-900">Services</a></li>
           <li><a href="/gallery" className="hover:text-zinc-900">Gallery</a></li>
           <li><a href="/about" className="hover:text-zinc-900">About Us</a></li>
@@ -57,7 +81,7 @@ export default function Header() {
       </div>
       <div className="flex items-center gap-4">
         <a
-          href="#"
+          href="/services"
           className="rounded-full border border-zinc-900 px-6 py-2.5 text-sm font-medium text-zinc-900 transition-all duration-300 hover:bg-zinc-900 hover:text-white"
           style={{ fontFamily: "var(--font-bodoni-moda)", backgroundColor: "#f5ead6" }}
         >
@@ -65,13 +89,23 @@ export default function Header() {
         </a>
         <div className="relative" ref={profileRef}>
           <button
-            onClick={() => setProfileOpen(!profileOpen)}
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-300 transition-colors hover:border-zinc-900"
+            onClick={() => {
+              if (!user) {
+                setProfileOpen(false);
+                setAuthModal("login");
+              } else {
+                setProfileOpen(!profileOpen);
+              }
+            }}
+            className="relative flex h-10 w-10 items-center justify-center rounded-full border border-zinc-300 transition-colors hover:border-zinc-900"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-700">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
               <circle cx="12" cy="7" r="4" />
             </svg>
+            {profileIncomplete && (
+              <span className="absolute -top-0.5 -right-0.5 inline-block w-2 h-2 rounded-full bg-red-600 border-2 border-white" />
+            )}
           </button>
           {profileOpen && (
             <div className="absolute right-0 mt-2 w-40 rounded-lg border border-zinc-200 bg-white py-2 shadow-lg" style={{ fontFamily: "var(--font-bodoni-moda)" }}>
@@ -81,6 +115,7 @@ export default function Header() {
                     {user.email}
                   </span>
                   <hr className="my-1 border-zinc-100" />
+                  <a href="/account" className="block px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100">Account</a>
                   <a href="/auth/signout" className="block px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100">
                     Log Out
                   </a>

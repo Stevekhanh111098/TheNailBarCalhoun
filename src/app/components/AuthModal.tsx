@@ -93,21 +93,8 @@ export default function AuthModal({ isOpen, onClose, initialView = "login" }: Au
       return;
     }
 
-    if (data.user) {
-      const { error: profileError } = await supabase.from("profiles").insert({
-        id: data.user.id,
-        email,
-        phone,
-        date_of_birth: dateOfBirth,
-      });
-
-      if (profileError) {
-        setError(profileError.message);
-        setLoading(false);
-        return;
-      }
-    }
-
+    // Do not insert profile here — wait until the user confirms email and
+    // is authenticated (the server callback will create the profile).
     setLoading(false);
     setView("check-email");
   }
